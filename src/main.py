@@ -33,7 +33,7 @@ if __name__ == '__main__':
 
     for i in range(args.epoch):
         print('Epoch %d...' % i)
-        if i == -1:
+        if i == 0:
             dev_acc = model.evaluate(dev_data)
             print('Dev accuracy: %f' % dev_acc)
         start_time = time.time()

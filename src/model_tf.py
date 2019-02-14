@@ -85,7 +85,7 @@ class Model:
             feed_input[self.network.p_q_relation], feed_input[self.network.p_c_relation], feed_input[self.network.y] = [x for x in batch_input]
             feed_input[self.network.word_emb_mat] = self.word_emb_mat
             pred_proba = self.sess.run([self.network.pred_proba], feed_dict=feed_input)
-            prediction += list(pred_proba)
+            prediction += [v[0] for v in pred_proba[0]]
             gold += [int(label) for label in feed_input[self.network.y]]
             assert(len(prediction) == len(gold))
 
@@ -138,6 +138,7 @@ class Model:
 
     def _iter_data(self, data):
         num_iter = (len(data) + self.batch_size - 1) // self.batch_size
+
         for i in range(num_iter):
             start_idx = i * self.batch_size
             batch_data = data[start_idx:(start_idx + self.batch_size)]
