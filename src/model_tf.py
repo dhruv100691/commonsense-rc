@@ -70,7 +70,7 @@ class Model:
             iter_cnt += 1
 
             if self.updates % 20 == 0:
-                print('Iter: %d/%d, Loss: %f' % (iter_cnt, num_iter, loss))
+                print('Iter: %d/%d, Loss: %f' % (iter_cnt, num_iter-1, loss))
 
     def evaluate(self, dev_data, debug=False, eval_train=False):
         if len(dev_data) == 0:
@@ -90,7 +90,7 @@ class Model:
             gold += [int(label) for label in feed_input[self.network.y]]
             assert(len(prediction) == len(gold))
             iter_cnt += 1
-            print('Iter: %d/%d' % (iter_cnt, num_iter))
+            print('Iter: %d/%d' % (iter_cnt, num_iter-1))
 
         if eval_train:
             prediction = [1 if p > 0.5 else 0 for p in prediction]
@@ -142,7 +142,7 @@ class Model:
     def _iter_data(self, data):
         num_iter = (len(data) + self.batch_size - 1) // self.batch_size
 
-        for i in range(num_iter):
+        for i in range(num_iter-1): #hack remove -1
             start_idx = i * self.batch_size
             batch_data = data[start_idx:(start_idx + self.batch_size)]
             batch_input = batchify(batch_data)
