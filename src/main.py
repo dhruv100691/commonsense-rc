@@ -8,7 +8,7 @@ from datetime import datetime
 
 from utils import load_data, build_vocab
 from config import args
-from model import Model
+from model_tf import Model
 
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
@@ -33,7 +33,7 @@ if __name__ == '__main__':
 
     for i in range(args.epoch):
         print('Epoch %d...' % i)
-        if i == 0:
+        if i == -1:
             dev_acc = model.evaluate(dev_data)
             print('Dev accuracy: %f' % dev_acc)
         start_time = time.time()
