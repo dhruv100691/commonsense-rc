@@ -79,6 +79,7 @@ class Model:
         feed_input={}
         correct, total, prediction, gold = 0, 0, [], []
         dev_data = sorted(dev_data, key=lambda ex: ex.id)
+        iter_cnt, num_iter = 0, (len(dev_data) + self.batch_size - 1) // self.batch_size
         for batch_input in self._iter_data(dev_data):
             feed_input[self.network.p], feed_input[self.network.p_pos], feed_input[self.network.p_ner], feed_input[self.network.p_mask], feed_input[self.network.q], \
             feed_input[self.network.q_pos], feed_input[self.network.q_mask], feed_input[self.network.c], feed_input[self.network.c_mask], feed_input[self.network.f_tensor], \
@@ -88,6 +89,8 @@ class Model:
             prediction += [v[0] for v in pred_proba[0]]
             gold += [int(label) for label in feed_input[self.network.y]]
             assert(len(prediction) == len(gold))
+            iter_cnt += 1
+            print('Iter: %d/%d' % (iter_cnt, num_iter))
 
         if eval_train:
             prediction = [1 if p > 0.5 else 0 for p in prediction]
