@@ -59,10 +59,7 @@ class Model:
             feed_input[self.network.p_q_relation],feed_input[self.network.p_c_relation],feed_input[self.network.y] = [x for x in batch_input]
             feed_input[self.network.word_emb_mat] = self.word_emb_mat
 
-            gradients, variables = zip(*self.optimizer.compute_gradients(self.network.ce_loss))
-            gradients, _ = tf.clip_by_global_norm(gradients, self.args.grad_clipping)
-            train_op = self.optimizer.apply_gradients(zip(gradients, variables))
-            _, loss = self.sess.run([train_op, self.network.ce_loss], feed_dict=feed_input)
+            _, loss = self.sess.run([self.network.train_op, self.network.ce_loss], feed_dict=feed_input)
 
             #torch.nn.utils.clip_grad_norm(self.network.parameters(), self.args.grad_clipping)
 
