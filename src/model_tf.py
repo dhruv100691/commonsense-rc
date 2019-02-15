@@ -30,7 +30,7 @@ class Model:
         #    torch.cuda.set_device(int(args.gpu))
         self.sess = tf.Session()
         self.network = TriAN(args)
-        #self.init_optimizer()
+        self.init_optimizer()
         if args.pretrained:
             print('Load pretrained model from %s...' % args.pretrained)
             self.load(args.pretrained)
@@ -59,7 +59,10 @@ class Model:
             feed_input[self.network.p_q_relation],feed_input[self.network.p_c_relation],feed_input[self.network.y] = [x for x in batch_input]
             feed_input[self.network.word_emb_mat] = self.word_emb_mat
 
-            _, loss = self.sess.run([self.network.optimizer, self.network.ce_loss], feed_dict=feed_input)
+            gradients, variables = zip(*self.optimizer.compute_gradients(self.network.ce_loss))
+            gradients, _ = tf.clip_by_global_norm(gradients, self.args.grad_clipping)
+            train_op = self.optimizer.apply_gradients(zip(gradients, variables))
+            _, loss = self.sess.run([train_op, self.network.ce_loss], feed_dict=feed_input)
 
             #torch.nn.utils.clip_grad_norm(self.network.parameters(), self.args.grad_clipping)
 
@@ -149,7 +152,6 @@ class Model:
             start_idx = i * self.batch_size
             batch_data = data[start_idx:(start_idx + self.batch_size)]
             batch_input = batchify(batch_data)
-
             # Transfer to GPU
             #if self.use_cuda:
             #    batch_input = [Variable(x.cuda(async=True)) for x in batch_input]

@@ -166,7 +166,7 @@ class TriAN(object):
         with tf.name_scope("optimization"):
             # Loss function
             self.ce_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=tf.reshape(self.y,[args.batch_size,1])))
-            self.optimizer = tf.train.AdamOptimizer(self.args.lr).minimize(self.ce_loss)
+            #self.optimizer = tf.train.AdamOptimizer(self.args.lr).minimize(self.ce_loss)
 
 
 
