@@ -48,10 +48,10 @@ if __name__ == '__main__':
 
         if dev_acc > best_dev_acc:
             best_dev_acc = dev_acc
-            os.system('mv ./data/output.log ./data/best-dev.log')
-            model.save(checkpoint_path)
-        elif args.test_mode:
-            model.save(checkpoint_path)
+            #os.system('mv ./data/output.log ./data/best-dev.log')
+            #model.save(checkpoint_path)
+            #elif args.test_mode:
+            #model.save(checkpoint_path)
         print('Epoch %d use %d seconds.' % (i, time.time() - start_time))
 
     print('Best dev accuracy: %f' % best_dev_acc)

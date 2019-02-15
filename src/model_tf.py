@@ -90,8 +90,9 @@ class Model:
             gold += [int(label) for label in feed_input[self.network.y]]
             assert(len(prediction) == len(gold))
             iter_cnt += 1
-            print('Iter: %d/%d' % (iter_cnt, num_iter-1))
-
+            if iter_cnt %10 ==0:
+               print('Iter: %d/%d' % (iter_cnt, num_iter-1))
+           
         if eval_train:
             prediction = [1 if p > 0.5 else 0 for p in prediction]
             acc = sum([1 if y1 == y2 else 0 for y1, y2 in zip(prediction, gold)]) / len(gold)
@@ -118,6 +119,8 @@ class Model:
                     correct += 1
                 total += 1
                 cur_pred, cur_gold, cur_choices = [], [], []
+            if i >= len(prediction):
+               break
             cur_pred.append(prediction[i])
             cur_gold.append(gold[i])
             cur_choices.append(ex.choice)
