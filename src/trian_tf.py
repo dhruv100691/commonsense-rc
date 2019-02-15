@@ -107,7 +107,7 @@ class TriAN(object):
         self.f_tensor = tf.placeholder('float32', [args.batch_size, None,None], name='f_tensor')
         self.p_q_relation = tf.placeholder('int32', [args.batch_size, None], name='p_q_relation')
         self.p_c_relation = tf.placeholder('int32', [args.batch_size, None], name='p_c_relation')
-        self.y = tf.placeholder('int32', [args.batch_size], name='y')
+        self.y = tf.placeholder('float32', [args.batch_size], name='y')
 
         init_weights = tf.random_normal_initializer(0, 0.1)
         with tf.variable_scope("embedding_layer"):
@@ -165,7 +165,7 @@ class TriAN(object):
 
         with tf.name_scope("optimization"):
             # Loss function
-            self.ce_loss = tf.reduce_mean(tf.losses.log_loss(labels=tf.reshape(self.y,[args.batch_size,1]), predictions=self.pred_proba))
+            self.ce_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=tf.reshape(self.y,[args.batch_size,1])))
             self.optimizer = tf.train.AdamOptimizer(self.args.lr).minimize(self.ce_loss)
 
 
