@@ -38,6 +38,7 @@ if __name__ == '__main__':
             print('Dev accuracy: %f' % dev_acc)
         start_time = time.time()
         np.random.shuffle(train_data)
+        train_data=sorted(train_data,key=lambda x:len(x.d_tensor))
         cur_train_data = train_data
 
         model.train(cur_train_data)
