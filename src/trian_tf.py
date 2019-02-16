@@ -99,7 +99,7 @@ class TriAN(object):
         self.q_mask = tf.placeholder('bool', [args.batch_size, None], name='q_mask')
         self.c = tf.placeholder('int32', [args.batch_size, None], name='c')
         self.c_mask = tf.placeholder('bool', [args.batch_size, None], name='c_mask')
-        self.f_tensor = tf.placeholder('float32', [args.batch_size, None,None], name='f_tensor')
+        self.f_tensor = tf.placeholder('float32', [args.batch_size, None,5], name='f_tensor')
         self.p_q_relation = tf.placeholder('int32', [args.batch_size, None], name='p_q_relation')
         self.p_c_relation = tf.placeholder('int32', [args.batch_size, None], name='p_c_relation')
         self.y = tf.placeholder('float32', [args.batch_size], name='y')
@@ -118,8 +118,8 @@ class TriAN(object):
                                                  initializer=init_weights)
 
             self.embedding = tf.concat(axis=0, values=[self.embedding, self.word_emb_mat])
-            #with tf.name_scope("embedding_dropout"):
-            #    self.embedding = tf.nn.dropout(self.embedding, keep_prob=self.keep_prob_input,noise_shape=[12626, 1])
+            with tf.name_scope("embedding_dropout"):
+                self.embedding = tf.nn.dropout(self.embedding, keep_prob=self.keep_prob_input,noise_shape=[12626, 1])
 
             p_emb = tf.nn.embedding_lookup(self.embedding,self.p)
             q_emb = tf.nn.embedding_lookup(self.embedding,self.q)
@@ -136,8 +136,7 @@ class TriAN(object):
             c_q_weighted_emb = SeqAttnMatch(self.embedding_dim,c_emb, q_emb, self.q_mask,"c_q_weighted_att")#batch_size,len_c,emb_dim
             c_p_weighted_emb = SeqAttnMatch(self.embedding_dim,c_emb, p_emb, self.p_mask,"c_p_weighted_att")#batch_size,len_c,emb_dim
 
-        #TODO Add f_tensor here
-        p_rnn_input = tf.concat([p_emb, p_q_weighted_emb, p_pos_emb, p_ner_emb,  p_q_rel_emb, p_c_rel_emb],axis=2)
+        p_rnn_input = tf.concat([p_emb, p_q_weighted_emb, p_pos_emb, p_ner_emb,self.f_tensor, p_q_rel_emb, p_c_rel_emb],axis=2)
         c_rnn_input = tf.concat([c_emb, c_q_weighted_emb, c_p_weighted_emb], axis=2)
         q_rnn_input = tf.concat([q_emb, q_pos_emb], axis=2)
 

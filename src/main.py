@@ -27,6 +27,7 @@ if __name__ == '__main__':
     model = Model(args)
 
     best_dev_acc = 0.0
+    best_train_acc = 0.0
     os.makedirs('./checkpoint', exist_ok=True)
     checkpoint_path = './checkpoint/%d-%s.mdl' % (args.seed, datetime.now().isoformat())
     print('Trained model will be saved to %s' % checkpoint_path)
@@ -53,6 +54,10 @@ if __name__ == '__main__':
             #model.save(checkpoint_path)
             #elif args.test_mode:
             #model.save(checkpoint_path)
+        if train_acc > best_train_acc:
+            best_train_acc = train_acc
         print('Epoch %d use %d seconds.' % (i, time.time() - start_time))
 
     print('Best dev accuracy: %f' % best_dev_acc)
+    print('Best train accuracy: %f' % best_train_acc)
+
