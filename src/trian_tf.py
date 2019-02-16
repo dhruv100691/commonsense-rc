@@ -17,13 +17,11 @@ def SeqAttnMatch(input_size,x,y,y_mask,scope_attn=None):
             matched_seq: batch * len1 * hdim
     """
     batch_size=tf.shape(x)[0]
-    with tf.variable_scope(scope_attn):
+    with tf.variable_scope(scope_attn,reuse=tf.AUTO_REUSE):
         W1= tf.get_variable(name='W1', shape=[input_size, input_size], dtype=tf.float32,initializer=tf.random_normal_initializer(-0.5, 0.5))
-        W2 = tf.get_variable(name='W2', shape=[input_size, input_size], dtype=tf.float32,initializer=tf.random_normal_initializer(-0.5, 0.5))
 
-        x_proj = tf.reshape(tf.matmul(tf.reshape(x,[-1,tf.shape(x)[2]]),W1),[batch_size,tf.shape(x)[1],-1])
-        y_proj = tf.reshape(tf.matmul(tf.reshape(y,[-1,tf.shape(y)[2]]),W2),[batch_size,tf.shape(y)[1],-1])
-
+        x_proj = tf.nn.relu(tf.reshape(tf.matmul(tf.reshape(x,[-1,tf.shape(x)[2]]),W1),[batch_size,tf.shape(x)[1],-1]))
+        y_proj = tf.nn.relu(tf.reshape(tf.matmul(tf.reshape(y,[-1,tf.shape(y)[2]]),W1),[batch_size,tf.shape(y)[1],-1]))
         alpha = tf.nn.softmax(tf.matmul(x_proj,tf.transpose(y_proj,perm=[0,2,1]))) #[batch_size , len1,len2]
         attn_i = tf.matmul(alpha,y) # [batch_size , len1, hdim]
 
@@ -41,16 +39,13 @@ def BilinearSeqAttn(x,y,normalize=True,scope_attn=None):
             x_mask: batch * len (1 for padding, 0 for true)
         Output:
             alpha = batch * len
-            attni=batch * len* hdim1
+            attni=batch * hdim1
     """
-
-    input_size = tf.shape(y)[1]
     batch_size = tf.shape(x)[0]
-
-    with tf.variable_scope(scope_attn):
+    with tf.variable_scope(scope_attn,reuse=tf.AUTO_REUSE):
         W1 = tf.get_variable(name='W3', shape=[y.get_shape()[1], x.get_shape()[2]], dtype=tf.float32,initializer=tf.random_normal_initializer(-0.5, 0.5))
         y_proj = tf.expand_dims(tf.matmul(y, W1),1) #batch,1,hdim1
-        alpha = tf.reshape(tf.matmul(x,tf.transpose(y_proj,perm=[0,2,1])),[batch_size,1,-1]) #batch,1,len
+        alpha = tf.nn.softmax(tf.reshape(tf.matmul(x,tf.transpose(y_proj,perm=[0,2,1])),[batch_size,1,-1])) #batch,1,len
         attn_i = tf.reshape(tf.matmul(alpha, x), [batch_size, -1])
 
     return attn_i
@@ -68,7 +63,7 @@ def SelfAttention(x,scope_attn):
     input_size = x.get_shape()[2]
     batch_size = x.get_shape()[0]
 
-    with tf.variable_scope(scope_attn):
+    with tf.variable_scope(scope_attn,reuse=tf.AUTO_REUSE):
         W1= tf.get_variable(name='W3', shape=[input_size, 1], dtype=tf.float32,initializer=tf.random_normal_initializer(-0.5, 0.5))
         x_proj = tf.reshape(tf.matmul(tf.reshape(x,[-1,input_size]),W1),[batch_size,tf.shape(x)[1]])
         alpha = tf.expand_dims(tf.nn.softmax(x_proj),1) #batch ,1, len
@@ -82,8 +77,8 @@ def StackedBRNN(input_rnn,input_size, hidden_size, num_layers,dropout_input=0, d
     for i in range(num_layers):
         cell_fw = BasicLSTMCell(hidden_size, state_is_tuple=True)
         cell_bw = BasicLSTMCell(hidden_size, state_is_tuple=True)
-        d_cell_fw = tf.contrib.rnn.DropoutWrapper(cell_fw, output_keep_prob=1-dropout_output, input_keep_prob=1-dropout_input)
-        d_cell_bw = tf.contrib.rnn.DropoutWrapper(cell_bw, output_keep_prob=1-dropout_output, input_keep_prob=1-dropout_input)
+        d_cell_fw = tf.contrib.rnn.DropoutWrapper(cell_fw, output_keep_prob=dropout_output, input_keep_prob=dropout_input)
+        d_cell_bw = tf.contrib.rnn.DropoutWrapper(cell_bw, output_keep_prob=dropout_output, input_keep_prob=dropout_input)
         cells_fw.append(d_cell_fw)
         cells_bw.append(d_cell_bw)
     outputs,_,_=stack_bidirectional_dynamic_rnn(cells_fw, cells_bw,input_rnn,dtype=tf.float32,sequence_length=input_size,scope=scope_stack)
@@ -108,6 +103,8 @@ class TriAN(object):
         self.p_q_relation = tf.placeholder('int32', [args.batch_size, None], name='p_q_relation')
         self.p_c_relation = tf.placeholder('int32', [args.batch_size, None], name='p_c_relation')
         self.y = tf.placeholder('float32', [args.batch_size], name='y')
+        self.keep_prob_input = tf.placeholder(tf.float32, name='keep_prob_input')
+        self.keep_prob_output = tf.placeholder(tf.float32, name='keep_prob_output')
 
         init_weights = tf.random_normal_initializer(0, 0.1)
         with tf.variable_scope("embedding_layer"):
@@ -121,6 +118,9 @@ class TriAN(object):
                                                  initializer=init_weights)
 
             self.embedding = tf.concat(axis=0, values=[self.embedding, self.word_emb_mat])
+            #with tf.name_scope("embedding_dropout"):
+            #    self.embedding = tf.nn.dropout(self.embedding, keep_prob=self.keep_prob_input,noise_shape=[12626, 1])
+
             p_emb = tf.nn.embedding_lookup(self.embedding,self.p)
             q_emb = tf.nn.embedding_lookup(self.embedding,self.q)
             c_emb = tf.nn.embedding_lookup(self.embedding,self.c)
@@ -130,10 +130,11 @@ class TriAN(object):
             p_q_rel_emb = tf.nn.embedding_lookup(self.rel_embedding,self.p_q_relation)
             p_c_rel_emb = tf.nn.embedding_lookup(self.rel_embedding,self.p_c_relation)
 
-        with tf.variable_scope("attention_layer"):
-            p_q_weighted_emb = SeqAttnMatch(self.embedding_dim,p_emb, q_emb, self.q_mask,"p_q_weighted_att")
-            c_q_weighted_emb = SeqAttnMatch(self.embedding_dim,c_emb, q_emb, self.q_mask,"c_q_weighted_att")
-            c_p_weighted_emb = SeqAttnMatch(self.embedding_dim,c_emb, p_emb, self.p_mask,"c_p_weighted_att")
+        with tf.variable_scope("attention_layer",reuse=tf.AUTO_REUSE):
+            #question aware passage embeddings
+            p_q_weighted_emb = SeqAttnMatch(self.embedding_dim,p_emb, q_emb, self.q_mask,"p_q_weighted_att")#batch_size,len_p,emb_dim
+            c_q_weighted_emb = SeqAttnMatch(self.embedding_dim,c_emb, q_emb, self.q_mask,"c_q_weighted_att")#batch_size,len_c,emb_dim
+            c_p_weighted_emb = SeqAttnMatch(self.embedding_dim,c_emb, p_emb, self.p_mask,"c_p_weighted_att")#batch_size,len_c,emb_dim
 
         #TODO Add f_tensor here
         p_rnn_input = tf.concat([p_emb, p_q_weighted_emb, p_pos_emb, p_ner_emb,  p_q_rel_emb, p_c_rel_emb],axis=2)
@@ -144,28 +145,30 @@ class TriAN(object):
         q_len = tf.reduce_sum(tf.cast(self.q_mask, 'int32'), 1)
         c_len = tf.reduce_sum(tf.cast(self.c_mask, 'int32'), 1)
 
-        with tf.variable_scope("encoding_layer"):
-            p_hiddens = StackedBRNN(p_rnn_input,p_len, self.args.hidden_size, self.args.doc_layers,self.args.dropout_emb, self.args.dropout_rnn_output,"doc_rnn")
-            c_hiddens = StackedBRNN(c_rnn_input,c_len, self.args.hidden_size, 1,self.args.dropout_emb, self.args.dropout_rnn_output,"a_rnn")
-            q_hiddens = StackedBRNN(q_rnn_input,q_len, self.args.hidden_size, 1,self.args.dropout_emb, self.args.dropout_rnn_output,"q_rnn")
+        with tf.variable_scope("encoding_layer",reuse=tf.AUTO_REUSE):
+            # batch_size,len,2*hidden_size
+            p_hiddens = StackedBRNN(p_rnn_input,p_len, self.args.hidden_size, self.args.doc_layers,self.keep_prob_input, self.keep_prob_output,"doc_rnn")
+            c_hiddens = StackedBRNN(c_rnn_input,c_len, self.args.hidden_size, 1,self.keep_prob_input, self.keep_prob_output,"a_rnn")
+            q_hiddens = StackedBRNN(q_rnn_input,q_len, self.args.hidden_size, 1,self.keep_prob_input, self.keep_prob_output,"q_rnn")
 
-        with tf.variable_scope("output_layer"):
-            q_hidden = SelfAttention(q_hiddens,"q_self") #batch,hdim1
+        with tf.variable_scope("output_layer",reuse=tf.AUTO_REUSE):
+            # batch,2*hidden_size
+            q_hidden = SelfAttention(q_hiddens,"q_self")
             c_hidden = SelfAttention(c_hiddens,"c_self")
             p_hidden = BilinearSeqAttn(p_hiddens,q_hidden,True,"p_q_bi_lin_attn")
 
-            W3 = tf.get_variable(name='W3', shape=[c_hidden.get_shape()[-1], p_hiddens.get_shape()[-1]], dtype=tf.float32,initializer=init_weights)
-            W4 = tf.get_variable(name='W4', shape=[c_hidden.get_shape()[-1], q_hidden.get_shape()[-1]], dtype=tf.float32,initializer=init_weights)
+            W3 = tf.get_variable(name='W3', shape=[2*self.args.hidden_size, 2*self.args.hidden_size], dtype=tf.float32,initializer=init_weights)
+            W4 = tf.get_variable(name='W4', shape=[2*self.args.hidden_size, 2*self.args.hidden_size], dtype=tf.float32,initializer=init_weights)
 
             logits = tf.reshape(tf.matmul(tf.expand_dims(tf.matmul(c_hidden,W3),1),
-                                          tf.reshape(p_hidden,[tf.shape(p_hidden)[0],-1,1])),[tf.shape(p_hidden)[0],-1]) #batch,1
-            logits += tf.reshape(tf.matmul(tf.expand_dims(tf.matmul(c_hidden,W4), 1),tf.reshape(q_hidden, [tf.shape(q_hidden)[0], -1, 1])),
-                                [tf.shape(q_hidden)[0], -1])  # batch,1
-            self.pred_proba = tf.nn.sigmoid(logits)
+                                          tf.reshape(p_hidden,[self.args.batch_size,2*self.args.hidden_size,1])),[self.args.batch_size,-1]) #batch,1
+            logits_final = tf.add(logits,tf.reshape(tf.matmul(tf.expand_dims(tf.matmul(c_hidden,W4), 1),tf.reshape(q_hidden, [self.args.batch_size, 2*self.args.hidden_size, 1])),
+                                [self.args.batch_size, -1]))  # batch,1
+            self.pred_proba = tf.nn.sigmoid(logits_final)
 
         with tf.name_scope("optimization"):
             # Loss function
-            self.ce_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=tf.reshape(self.y,[args.batch_size,1])))
+            self.ce_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits_final, labels=tf.reshape(self.y,[args.batch_size,1])))
             self.optimizer = tf.train.AdamOptimizer(self.args.lr)
             gradients, variables = zip(*self.optimizer.compute_gradients(self.ce_loss))
             gradients, _ = tf.clip_by_global_norm(gradients, self.args.grad_clipping)

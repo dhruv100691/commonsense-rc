@@ -28,6 +28,7 @@ class Model:
         #print('Use cuda:', self.use_cuda)
         #if self.use_cuda:
         #    torch.cuda.set_device(int(args.gpu))
+        tf.reset_default_graph()
         self.sess = tf.Session()
         self.network = TriAN(args)
         self.init_optimizer()
@@ -58,6 +59,8 @@ class Model:
             feed_input[self.network.q_pos],feed_input[self.network.q_mask],feed_input[self.network.c],feed_input[self.network.c_mask],feed_input[self.network.f_tensor],\
             feed_input[self.network.p_q_relation],feed_input[self.network.p_c_relation],feed_input[self.network.y] = [x for x in batch_input]
             feed_input[self.network.word_emb_mat] = self.word_emb_mat
+            feed_input[self.network.keep_prob_input] =1 - self.args.dropout_emb
+            feed_input[self.network.keep_prob_output] =1 - self.args.dropout_rnn_output
 
             _, loss = self.sess.run([self.network.train_op, self.network.ce_loss], feed_dict=feed_input)
 
@@ -85,6 +88,9 @@ class Model:
             feed_input[self.network.q_pos], feed_input[self.network.q_mask], feed_input[self.network.c], feed_input[self.network.c_mask], feed_input[self.network.f_tensor], \
             feed_input[self.network.p_q_relation], feed_input[self.network.p_c_relation], feed_input[self.network.y] = [x for x in batch_input]
             feed_input[self.network.word_emb_mat] = self.word_emb_mat
+            feed_input[self.network.keep_prob_input] = 1
+            feed_input[self.network.keep_prob_output] = 1
+
             pred_proba = self.sess.run([self.network.pred_proba], feed_dict=feed_input)
             prediction += [v[0] for v in pred_proba[0]]
             gold += [int(label) for label in feed_input[self.network.y]]
