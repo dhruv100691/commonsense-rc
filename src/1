@@ -160,18 +160,15 @@ class TriAN(object):
             W3 = tf.get_variable(name='W3', shape=[2*self.args.hidden_size, 2*self.args.hidden_size], dtype=tf.float32,initializer=init_weights)
             W4 = tf.get_variable(name='W4', shape=[2*self.args.hidden_size, 2*self.args.hidden_size], dtype=tf.float32,initializer=init_weights)
 
-            #logits = tf.reshape(tf.matmul(tf.expand_dims(tf.matmul(c_hidden,W3),1),
-            #                              tf.reshape(p_hidden,[self.args.batch_size,2*self.args.hidden_size,1])),[self.args.batch_size,-1]) #batch,1
-            #logits_final = tf.add(logits,tf.reshape(tf.matmul(tf.expand_dims(tf.matmul(c_hidden,W4), 1),tf.reshape(q_hidden, [self.args.batch_size, 2*self.args.hidden_size, 1])),
-            #                    [self.args.batch_size, -1]))  # batch,1
-            logits = tf.reduce_sum(tf.matmul(p_hidden,W3) * c_hidden,-1)
-            logits_final = tf.add(logits,tf.reduce_sum(tf.matmul(q_hidden,W3) * c_hidden,-1))
-
+            logits = tf.reshape(tf.matmul(tf.expand_dims(tf.matmul(c_hidden,W3),1),
+                                          tf.reshape(p_hidden,[self.args.batch_size,2*self.args.hidden_size,1])),[self.args.batch_size,-1]) #batch,1
+            logits_final = tf.add(logits,tf.reshape(tf.matmul(tf.expand_dims(tf.matmul(c_hidden,W4), 1),tf.reshape(q_hidden, [self.args.batch_size, 2*self.args.hidden_size, 1])),
+                                [self.args.batch_size, -1]))  # batch,1
             self.pred_proba = tf.nn.sigmoid(logits_final)
 
         with tf.name_scope("optimization"):
             # Loss function
-            self.ce_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits_final, labels=self.y))
+            self.ce_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits_final, labels=tf.reshape(self.y,[args.batch_size,1])))
             self.optimizer = tf.train.AdamOptimizer(self.args.lr)
             gradients, variables = zip(*self.optimizer.compute_gradients(self.ce_loss))
             gradients, _ = tf.clip_by_global_norm(gradients, self.args.grad_clipping)

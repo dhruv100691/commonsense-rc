@@ -92,7 +92,7 @@ class Model:
             feed_input[self.network.keep_prob_output] = 1
 
             pred_proba = self.sess.run([self.network.pred_proba], feed_dict=feed_input)
-            prediction += [v[0] for v in pred_proba[0]]
+            prediction += [v for v in pred_proba[0]]
             gold += [int(label) for label in feed_input[self.network.y]]
             assert(len(prediction) == len(gold))
             iter_cnt += 1
