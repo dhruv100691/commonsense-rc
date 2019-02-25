@@ -4,7 +4,6 @@ from tensorflow.python.ops.rnn import dynamic_rnn, bidirectional_dynamic_rnn
 from utils import vocab, pos_vocab, ner_vocab, rel_vocab
 from tensorflow.contrib.rnn import stack_bidirectional_dynamic_rnn
 
-
 def SeqAttnMatch(input_size,x,y,y_mask,scope_attn=None):
     """Given sequences X and Y, match sequence Y to each element in X.
         * o_i = sum(alpha_j * y_j) for i in X
@@ -18,16 +17,19 @@ def SeqAttnMatch(input_size,x,y,y_mask,scope_attn=None):
     """
     batch_size=tf.shape(x)[0]
     with tf.variable_scope(scope_attn,reuse=tf.AUTO_REUSE):
-        W1= tf.get_variable(name='W1', shape=[input_size, input_size], dtype=tf.float32,initializer=tf.random_normal_initializer(-0.5, 0.5))
+        #W1= tf.get_variable(name='W1', shape=[input_size, input_size], dtype=tf.float32,initializer=tf.random_normal_initializer(-0.5, 0.5))
+        #x_proj = tf.nn.relu(tf.reshape(tf.matmul(tf.reshape(x,[-1,tf.shape(x)[2]]),W1),[batch_size,tf.shape(x)[1],-1]))
+        #y_proj = tf.nn.relu(tf.reshape(tf.matmul(tf.reshape(y,[-1,tf.shape(y)[2]]),W1),[batch_size,tf.shape(y)[1],-1]))
 
-        x_proj = tf.nn.relu(tf.reshape(tf.matmul(tf.reshape(x,[-1,tf.shape(x)[2]]),W1),[batch_size,tf.shape(x)[1],-1]))
-        y_proj = tf.nn.relu(tf.reshape(tf.matmul(tf.reshape(y,[-1,tf.shape(y)[2]]),W1),[batch_size,tf.shape(y)[1],-1]))
+        x_proj = tf.reshape(tf.layers.dense(inputs=tf.reshape(x,[-1,input_size]),units=input_size,activation=tf.nn.relu,name="seqAttn"),[batch_size,tf.shape(x)[1],-1])
+        y_proj = tf.reshape(tf.layers.dense(inputs=tf.reshape(y,[-1,input_size]),units=input_size,activation=tf.nn.relu,name="seqAttn",reuse=True),[batch_size,tf.shape(y)[1],-1])
+
         alpha = tf.nn.softmax(tf.matmul(x_proj,tf.transpose(y_proj,perm=[0,2,1]))) #[batch_size , len1,len2]
         attn_i = tf.matmul(alpha,y) # [batch_size , len1, hdim]
 
     return attn_i
 
-def BilinearSeqAttn(x,y,normalize=True,scope_attn=None):
+def BilinearSeqAttn(x,y,output_size,scope_attn=None):
     """A bilinear attention layer over a sequence X w.r.t y:
 
         * o_i = softmax(x_i'Wy) for x_i in X.
@@ -43,8 +45,9 @@ def BilinearSeqAttn(x,y,normalize=True,scope_attn=None):
     """
     batch_size = tf.shape(x)[0]
     with tf.variable_scope(scope_attn,reuse=tf.AUTO_REUSE):
-        W1 = tf.get_variable(name='W3', shape=[y.get_shape()[1], x.get_shape()[2]], dtype=tf.float32,initializer=tf.random_normal_initializer(-0.5, 0.5))
-        y_proj = tf.expand_dims(tf.matmul(y, W1),1) #batch,1,hdim1
+        #W1 = tf.get_variable(name='W3', shape=[y.get_shape()[1], x.get_shape()[2]], dtype=tf.float32,initializer=tf.random_normal_initializer(-0.5, 0.5))
+        #y_proj = tf.expand_dims(tf.matmul(y, W1),1) #batch,1,hdim1
+        y_proj = tf.expand_dims(tf.layers.dense(inputs=y,units=output_size,use_bias=True),1)#batch,1,hdim1
         alpha = tf.nn.softmax(tf.reshape(tf.matmul(x,tf.transpose(y_proj,perm=[0,2,1])),[batch_size,1,-1])) #batch,1,len
         attn_i = tf.reshape(tf.matmul(alpha, x), [batch_size, -1])
 
@@ -64,8 +67,9 @@ def SelfAttention(x,scope_attn):
     batch_size = x.get_shape()[0]
 
     with tf.variable_scope(scope_attn,reuse=tf.AUTO_REUSE):
-        W1= tf.get_variable(name='W3', shape=[input_size, 1], dtype=tf.float32,initializer=tf.random_normal_initializer(-0.5, 0.5))
-        x_proj = tf.reshape(tf.matmul(tf.reshape(x,[-1,input_size]),W1),[batch_size,tf.shape(x)[1]])
+        #W1= tf.get_variable(name='W3', shape=[input_size, 1], dtype=tf.float32,initializer=tf.random_normal_initializer(-0.5, 0.5))
+        #x_proj = tf.reshape(tf.matmul(tf.reshape(x,[-1,input_size]),W1),[batch_size,tf.shape(x)[1]])
+        x_proj = tf.reshape(tf.layers.dense(inputs=tf.reshape(x,[-1,input_size]),units=1,activation=tf.nn.softmax,use_bias=True),[batch_size,tf.shape(x)[1]])
         alpha = tf.expand_dims(tf.nn.softmax(x_proj),1) #batch ,1, len
         attn_i = tf.reshape(tf.matmul(alpha,x),[batch_size,-1])
 
@@ -154,18 +158,12 @@ class TriAN(object):
             # batch,2*hidden_size
             q_hidden = SelfAttention(q_hiddens,"q_self")
             c_hidden = SelfAttention(c_hiddens,"c_self")
-            p_hidden = BilinearSeqAttn(p_hiddens,q_hidden,True,"p_q_bi_lin_attn")
+            p_hidden = BilinearSeqAttn(p_hiddens,q_hidden,2*self.args.hidden_size,"p_q_bi_lin_attn")
 
             W3 = tf.get_variable(name='W3', shape=[2*self.args.hidden_size, 2*self.args.hidden_size], dtype=tf.float32,initializer=init_weights)
-            W4 = tf.get_variable(name='W4', shape=[2*self.args.hidden_size, 2*self.args.hidden_size], dtype=tf.float32,initializer=init_weights)
 
-            #logits = tf.reshape(tf.matmul(tf.expand_dims(tf.matmul(c_hidden,W3),1),
-            #                              tf.reshape(p_hidden,[self.args.batch_size,2*self.args.hidden_size,1])),[self.args.batch_size,-1]) #batch,1
-            #logits_final = tf.add(logits,tf.reshape(tf.matmul(tf.expand_dims(tf.matmul(c_hidden,W4), 1),tf.reshape(q_hidden, [self.args.batch_size, 2*self.args.hidden_size, 1])),
-            #                    [self.args.batch_size, -1]))  # batch,1
             logits = tf.reduce_sum(tf.matmul(p_hidden,W3) * c_hidden,-1)
             logits_final = tf.add(logits,tf.reduce_sum(tf.matmul(q_hidden,W3) * c_hidden,-1))
-
             self.pred_proba = tf.nn.sigmoid(logits_final)
 
         with tf.name_scope("optimization"):
