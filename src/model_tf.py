@@ -175,7 +175,7 @@ class Model:
         logger.info('Loading pre-trained embeddings for %d words from %s' %
                     (len(words), embedding_file))
         #embedding = self.network.embedding.weight.data
-        embedding={}
+        embedding=np.zeros((len(vocab),300))
         # When normalized, some words are duplicated. (Average the embeddings).
         vec_counts = {}
         with open(embedding_file) as f:
@@ -195,12 +195,11 @@ class Model:
 
         for w, c in vec_counts.items():
             embedding[vocab[w]]  /= c
-        emb_mat = np.asarray([v for v in embedding.values()], dtype='float32')
 
         logger.info('Loaded %d embeddings (%.2f%%)' %
                     (len(vec_counts), 100 * len(vec_counts) / len(words)))
 
-        return  emb_mat
+        return  embedding
 
     def init_optimizer(self):
         #parameters = [p for p in self.network.parameters() if p.requires_grad]

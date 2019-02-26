@@ -111,9 +111,9 @@ class TriAN(object):
         self.keep_prob_output = tf.placeholder(tf.float32, name='keep_prob_output')
 
         init_weights = tf.random_normal_initializer(0, 0.1)
-        with tf.variable_scope("embedding_layer"):
+        with tf.variable_scope("embedding_layer"),tf.device("/cpu:0"):
             # embedding matrices
-            self.embedding = tf.get_variable("word_emb_mat", dtype='float', shape=[2, self.embedding_dim], initializer=init_weights)
+            #self.embedding = tf.get_variable("word_emb_mat", dtype='float', shape=[2, self.embedding_dim], initializer=init_weights)
             self.pos_embedding = tf.get_variable("pos_emb_mat", dtype='float', shape=[len(pos_vocab), self.args.pos_emb_dim],
                                                  initializer=init_weights)
             self.ner_embedding = tf.get_variable("ner_emb_mat", dtype='float', shape=[len(ner_vocab), self.args.ner_emb_dim],
@@ -121,9 +121,10 @@ class TriAN(object):
             self.rel_embedding = tf.get_variable("rel_emb_mat", dtype='float', shape=[len(rel_vocab), self.args.rel_emb_dim],
                                                  initializer=init_weights)
 
-            self.embedding = tf.concat(axis=0, values=[self.embedding, self.word_emb_mat])
+            #self.embedding = tf.concat(axis=0, values=[self.embedding, self.word_emb_mat])
+            self.embedding = self.word_emb_mat
             with tf.name_scope("embedding_dropout"):
-                self.embedding = tf.nn.dropout(self.embedding, keep_prob=self.keep_prob_input,noise_shape=[12626, 1])
+                self.embedding = tf.nn.dropout(self.embedding, keep_prob=self.keep_prob_input,noise_shape=[len(vocab), 1])
 
             p_emb = tf.nn.embedding_lookup(self.embedding,self.p)
             q_emb = tf.nn.embedding_lookup(self.embedding,self.q)
