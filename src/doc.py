@@ -1,4 +1,3 @@
-import torch
 import numpy as np
 
 from utils import vocab, pos_vocab, ner_vocab, rel_vocab

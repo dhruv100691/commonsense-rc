@@ -1,10 +1,5 @@
 import logging
 import copy
-import torch
-import torch.optim as optim
-import torch.nn.functional as F
-from torch.autograd import Variable
-import torch.optim.lr_scheduler as lr_scheduler
 import numpy as np
 import tensorflow as tf
 
@@ -74,6 +69,7 @@ class Model:
 
             if self.updates % 20 == 0:
                 print('Iter: %d/%d, Loss: %f' % (iter_cnt, num_iter-1, loss))
+        self.sess.run(self.network.increment_global_step_op)
 
     def evaluate(self, dev_data, debug=False, eval_train=False):
         if len(dev_data) == 0:
@@ -107,6 +103,8 @@ class Model:
         cur_pred, cur_gold, cur_choices = [], [], []
         if debug:
             writer = open('./data/output.log', 'w', encoding='utf-8')
+            writer_incor = open('./data/output_incor.log', 'w', encoding='utf-8')
+
         for i, ex in enumerate(dev_data):
             if i + 1 == len(dev_data):
                 cur_pred.append(prediction[i])
@@ -121,6 +119,13 @@ class Model:
                         writer.write('*' if idx == gy else ' ')
                         writer.write('%s  %f\n' % (choice, cur_pred[idx]))
                     writer.write('\n')
+                    if py!= gy:
+                        writer_incor.write('Passage: %s\n' % dev_data[i - 1].passage)
+                        writer_incor.write('Question: %s\n' % dev_data[i - 1].question)
+                        for idx, choice in enumerate(cur_choices):
+                            writer_incor.write('*' if idx == gy else ' ')
+                            writer_incor.write('%s  %f\n' % (choice, cur_pred[idx]))
+                        writer_incor.write('\n')
                 if py == gy:
                     correct += 1
                 total += 1
@@ -135,6 +140,8 @@ class Model:
         if debug:
             writer.write('Accuracy: %f\n' % acc)
             writer.close()
+            writer_incor.write('Accuracy: %f\n' % acc)
+            writer_incor.close()
         return acc
 
     def predict(self, test_data):
