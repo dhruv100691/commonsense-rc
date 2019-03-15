@@ -109,6 +109,8 @@ class TriAN(object):
         self.y = tf.placeholder('float32', [args.batch_size], name='y')
         self.keep_prob_input = tf.placeholder(tf.float32, name='keep_prob_input')
         self.keep_prob_output = tf.placeholder(tf.float32, name='keep_prob_output')
+        #self.global_step = tf.Variable(1, name='global_step', trainable=False, dtype=tf.int32)
+        #self.increment_global_step_op = tf.assign(self.global_step, self.global_step + 1)
 
         init_weights = tf.random_normal_initializer(0, 0.1)
         with tf.variable_scope("embedding_layer"),tf.device("/cpu:0"):
@@ -170,6 +172,10 @@ class TriAN(object):
         with tf.name_scope("optimization"):
             # Loss function
             self.ce_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits_final, labels=self.y))
+            #TODO: add back in if want to have changing learning rate
+            #self.global_step = tf.Print(self.global_step,[self.global_step],message="self.global_step",first_n=20,summarize=20)
+            #learning_rate = tf.train.exponential_decay(self.args.lr, self.global_step, 20, 0.5, staircase=True)
+            #self.optimizer = tf.train.AdamOptimizer(learning_rate)
             self.optimizer = tf.train.AdamOptimizer(self.args.lr)
             gradients, variables = zip(*self.optimizer.compute_gradients(self.ce_loss))
             gradients, _ = tf.clip_by_global_norm(gradients, self.args.grad_clipping)

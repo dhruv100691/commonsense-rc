@@ -28,6 +28,7 @@ if __name__ == '__main__':
 
     best_dev_acc = 0.0
     best_train_acc = 0.0
+    best_epoch =0
     os.makedirs('./checkpoint', exist_ok=True)
     checkpoint_path = './checkpoint/%d-%s.mdl' % (args.seed, datetime.now().isoformat())
     print('Trained model will be saved to %s' % checkpoint_path)
@@ -50,6 +51,7 @@ if __name__ == '__main__':
 
         if dev_acc > best_dev_acc:
             best_dev_acc = dev_acc
+            best_epoch = i
             #os.system('mv ./data/output.log ./data/best-dev.log')
             #model.save(checkpoint_path)
             #elif args.test_mode:
@@ -58,6 +60,6 @@ if __name__ == '__main__':
             best_train_acc = train_acc
         print('Epoch %d use %d seconds.' % (i, time.time() - start_time))
 
-    print('Best dev accuracy: %f' % best_dev_acc)
+    print('Best dev accuracy: %f %d' % (best_dev_acc,best_epoch))
     print('Best train accuracy: %f' % best_train_acc)
 
