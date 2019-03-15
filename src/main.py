@@ -1,6 +1,5 @@
 import os
 import time
-import torch
 import random
 import numpy as np
 
@@ -10,7 +9,7 @@ from utils import load_data, build_vocab
 from config import args
 from model_tf import Model
 
-torch.manual_seed(args.seed)
+#torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 random.seed(args.seed)
 
